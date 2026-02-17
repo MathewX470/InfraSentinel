@@ -10,7 +10,7 @@ import os
 import time
 import logging
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, desc
+from sqlalchemy import create_engine, Column, Integer, Float, String, DateTime, desc, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.sql import func
 
@@ -81,7 +81,7 @@ class AlertWorker:
                 
                 # Test connection
                 with self.engine.connect() as conn:
-                    conn.execute("SELECT 1")
+                    conn.execute(text("SELECT 1"))
                 
                 logger.info("Successfully connected to database")
                 return
