@@ -1,0 +1,39 @@
+# Dependencies
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# MySQL data (mounted volume)
+mysql_data/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/

@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: infrasentinel-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-monitoring}
+      MYSQL_USER: ${MYSQL_USER:-monitor_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-monitor_pass}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "127.0.0.1:3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infrasentinel-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: infrasentinel-backend
+    restart: always
+    pid: host
+    privileged: true
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-monitor_user}:${MYSQL_PASSWORD:-monitor_pass}@db:3306/${MYSQL_DATABASE:-monitoring}
+      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-in-production}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      HOST_PROC: /host/proc
+      HOST_SYS: /host/sys
+      HOST_ROOT: /host/root
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - infrasentinel-network
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: infrasentinel-worker
+    restart: always
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-monitor_user}:${MYSQL_PASSWORD:-monitor_pass}@db:3306/${MYSQL_DATABASE:-monitoring}
+      CPU_ALERT_THRESHOLD: ${CPU_ALERT_THRESHOLD:-80}
+      MEMORY_ALERT_THRESHOLD: ${MEMORY_ALERT_THRESHOLD:-80}
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - infrasentinel-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: infrasentinel-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - infrasentinel-network
+
+networks:
+  infrasentinel-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
