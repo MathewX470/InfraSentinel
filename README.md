@@ -41,12 +41,21 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## � Deployment Guides
+
+| Platform | Guide |
+|----------|-------|
+| **Windows (Development)** | [WINDOWS_GUIDE.md](WINDOWS_GUIDE.md) |
+| **AWS EC2 (Production)** | [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) |
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Docker & Docker Compose installed
-- Ubuntu 22.04 EC2 instance (recommended)
+- Ubuntu 22.04 EC2 instance (for production) or Windows with Docker Desktop (for development)
 
 ### 1. Clone and Configure
 
