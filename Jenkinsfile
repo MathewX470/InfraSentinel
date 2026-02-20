@@ -27,6 +27,19 @@ pipeline {
             }
         }
         
+        stage('Check CI Skip') {
+            steps {
+                script {
+                    def commitMessage = sh(script: 'git log -1 --pretty=%B', returnStdout: true).trim()
+                    if (commitMessage =~ /\[ci skip\]|\[skip ci\]/) {
+                        echo "⏭️ Commit message contains [ci skip] or [skip ci]. Skipping build."
+                        currentBuild.result = 'ABORTED'
+                        error('Build skipped by commit message')
+                    }
+                }
+            }
+        }
+        
         stage('Validate') {
             steps {
                 echo '✅ Validating configuration files...'
