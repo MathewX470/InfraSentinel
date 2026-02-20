@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKER_COMPOSE = 'docker-compose'
         PROJECT_NAME = 'infrasentinel'
+        COMPOSE_PROJECT_NAME = 'infrasentinel'  // Ensures consistent network/container naming
         BACKUP_DIR = '/tmp/infrasentinel-backup'
     }
     
@@ -117,6 +118,15 @@ pipeline {
                 echo '🚀 Deploying new version...'
                 script {
                     sh '''
+                        # Ensure the project network exists
+                        docker network create infrasentinel_infrasentinel-network 2>/dev/null || true
+                        
+                        # Connect the existing DB to our network (if not already connected)
+                        if docker ps -q -f name=infrasentinel-db | grep -q .; then
+                            docker network connect infrasentinel_infrasentinel-network infrasentinel-db 2>/dev/null || true
+                            echo "✓ Database connected to deployment network"
+                        fi
+                        
                         # Start fresh application services (DB stays running)
                         docker-compose up -d --no-deps backend frontend worker
                         
@@ -246,6 +256,10 @@ pipeline {
                         for svc in infrasentinel-backend infrasentinel-frontend infrasentinel-worker; do
                             docker rm -f "$svc" 2>/dev/null || true
                         done
+                        
+                        # Ensure DB is connected to our network
+                        docker network create infrasentinel_infrasentinel-network 2>/dev/null || true
+                        docker network connect infrasentinel_infrasentinel-network infrasentinel-db 2>/dev/null || true
                         
                         docker-compose up -d --no-deps backend frontend worker
                         echo "⚠️ Rolled back to previous version"
