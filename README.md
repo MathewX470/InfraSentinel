@@ -13,6 +13,7 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 - **Alert System**: Automatic alerts when CPU or memory exceed thresholds
 - **Admin-Only Access**: JWT-based authentication for single admin user
 - **Modern Dashboard**: Responsive web UI with Chart.js visualizations
+- **CI/CD Pipeline**: Automated deployments with Jenkins including health checks and rollback
 
 ## 🏗 Architecture
 
