@@ -34,15 +34,7 @@ pipeline {
                     
                     // Check required files exist
                     sh '''
-                        required_files=(
-                            "backend/Dockerfile"
-                            "frontend/Dockerfile"
-                            "worker/Dockerfile"
-                            "backend/requirements.txt"
-                            "worker/requirements.txt"
-                        )
-                        
-                        for file in "${required_files[@]}"; do
+                        for file in backend/Dockerfile frontend/Dockerfile worker/Dockerfile backend/requirements.txt worker/requirements.txt; do
                             if [ ! -f "$file" ]; then
                                 echo "❌ Missing required file: $file"
                                 exit 1
