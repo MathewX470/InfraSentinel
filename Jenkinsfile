@@ -111,8 +111,8 @@ pipeline {
                 echo '🚀 Deploying new version...'
                 script {
                     sh '''
-                        # Start application services without recreating dependencies (DB stays running)
-                        docker-compose up -d --no-deps backend frontend worker
+                        # Recreate application services without touching dependencies (DB stays running)
+                        docker-compose up -d --no-deps --force-recreate backend frontend worker
                         
                         # Wait for services to be healthy
                         echo "Waiting for services to start..."
@@ -225,7 +225,7 @@ pipeline {
                     if [ -d ${BACKUP_DIR} ] && [ -f ${BACKUP_DIR}/docker-compose.yml.backup ]; then
                         echo "Attempting to restore previous version..."
                         cp ${BACKUP_DIR}/docker-compose.yml.backup docker-compose.yml
-                        docker-compose up -d --no-deps backend frontend worker
+                        docker-compose up -d --no-deps --force-recreate backend frontend worker
                         echo "⚠️ Rolled back to previous version"
                     else
                         echo "⚠️ No backup available for rollback"
