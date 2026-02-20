@@ -138,12 +138,13 @@ pipeline {
                 echo '🏥 Running health checks...'
                 script {
                     sh '''
-                        # Wait for backend to be ready
+                        # Wait for backend to be ready (use Python since curl may not be installed)
                         max_attempts=30
                         attempt=0
                         
                         while [ $attempt -lt $max_attempts ]; do
-                            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+                            # Use Python to check health endpoint from inside the backend container
+                            if docker exec infrasentinel-backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)" > /dev/null 2>&1; then
                                 echo "✓ Backend is healthy"
                                 break
                             fi
@@ -155,14 +156,23 @@ pipeline {
                         
                         if [ $attempt -eq $max_attempts ]; then
                             echo "❌ Backend health check failed"
+                            echo "Backend container logs:"
+                            docker logs --tail=30 infrasentinel-backend
                             exit 1
                         fi
                         
-                        # Check if frontend is accessible
-                        if curl -sf http://localhost:80 > /dev/null 2>&1; then
-                            echo "✓ Frontend is accessible"
+                        # Verify frontend container is running
+                        if docker ps --filter name=infrasentinel-frontend --filter status=running | grep -q infrasentinel-frontend; then
+                            echo "✓ Frontend is running"
                         else
-                            echo "⚠️ Frontend may not be ready yet"
+                            echo "⚠️ Frontend container not running"
+                        fi
+                        
+                        # Verify worker container is running
+                        if docker ps --filter name=infrasentinel-worker --filter status=running | grep -q infrasentinel-worker; then
+                            echo "✓ Worker is running"
+                        else
+                            echo "⚠️ Worker container not running"
                         fi
                         
                         # Show running containers
