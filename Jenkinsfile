@@ -98,9 +98,15 @@ pipeline {
                 echo '🛑 Stopping current services...'
                 script {
                     sh '''
-                        # Stop services gracefully (keep DB and Jenkins running)
-                        docker-compose stop backend frontend worker
-                        echo "✓ Services stopped"
+                        # Stop and remove application containers (keep DB and Jenkins running)
+                        for svc in infrasentinel-backend infrasentinel-frontend infrasentinel-worker; do
+                            if docker ps -a -q -f name="^${svc}$" | grep -q .; then
+                                echo "Stopping and removing $svc..."
+                                docker stop "$svc" 2>/dev/null || true
+                                docker rm -f "$svc" 2>/dev/null || true
+                            fi
+                        done
+                        echo "✓ Services stopped and removed"
                     '''
                 }
             }
@@ -111,8 +117,8 @@ pipeline {
                 echo '🚀 Deploying new version...'
                 script {
                     sh '''
-                        # Recreate application services without touching dependencies (DB stays running)
-                        docker-compose up -d --no-deps --force-recreate backend frontend worker
+                        # Start fresh application services (DB stays running)
+                        docker-compose up -d --no-deps backend frontend worker
                         
                         # Wait for services to be healthy
                         echo "Waiting for services to start..."
@@ -225,7 +231,13 @@ pipeline {
                     if [ -d ${BACKUP_DIR} ] && [ -f ${BACKUP_DIR}/docker-compose.yml.backup ]; then
                         echo "Attempting to restore previous version..."
                         cp ${BACKUP_DIR}/docker-compose.yml.backup docker-compose.yml
-                        docker-compose up -d --no-deps --force-recreate backend frontend worker
+                        
+                        # Remove any existing containers first
+                        for svc in infrasentinel-backend infrasentinel-frontend infrasentinel-worker; do
+                            docker rm -f "$svc" 2>/dev/null || true
+                        done
+                        
+                        docker-compose up -d --no-deps backend frontend worker
                         echo "⚠️ Rolled back to previous version"
                     else
                         echo "⚠️ No backup available for rollback"
