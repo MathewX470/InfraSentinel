@@ -288,14 +288,73 @@ Expected Docker Desktop resource usage:
 | Worker | ~50MB | Low |
 | MySQL | ~400MB | Low |
 | Frontend | ~30MB | Minimal |
-| **Total** | ~700MB | Minimal |
+| Jenkins | ~500MB | Low |
+| **Total (with Jenkins)** | ~1.2GB | Low |
+| **Total (without Jenkins)** | ~700MB | Minimal |
 
 You can adjust Docker Desktop resources in:
 Settings → Resources → Advanced
 
+**Tip:** Stop Jenkins when not testing CI/CD to save memory:
+```powershell
+docker-compose stop jenkins
+```
+
 ---
 
-## 🚀 Ready for EC2?
+## � Jenkins CI/CD (Optional)
+
+InfraSentinel includes Jenkins for testing the CI/CD pipeline locally.
+
+### Start Jenkins
+
+```powershell
+# Start all services including Jenkins
+docker-compose up -d
+
+# Or start only Jenkins
+docker-compose up -d jenkins
+```
+
+### Access Jenkins
+
+Open: http://localhost:8080
+
+Login credentials:
+- **Username:** `admin`
+- **Password:** `admin123` (change this in production!)
+
+### Test the Pipeline
+
+1. Go to Jenkins → Click "InfraSentinel-Deploy"
+2. Click "Build Now"
+3. Watch the deployment pipeline execute:
+   - Checkout code
+   - Validate configs
+   - Backup database
+   - Build Docker images
+   - Deploy services
+   - Run health checks
+   - Cleanup old images
+
+### Jenkins Commands
+
+```powershell
+# View Jenkins logs
+docker-compose logs -f jenkins
+
+# Restart Jenkins
+docker-compose restart jenkins
+
+# Stop Jenkins (saves resources)
+docker-compose stop jenkins
+```
+
+**Note:** GitHub webhook won't work on `localhost`. Webhooks require a publicly accessible URL (like your EC2 instance).
+
+---
+
+## �🚀 Ready for EC2?
 
 When you're ready to deploy to AWS EC2:
 
@@ -314,13 +373,16 @@ On EC2 (Linux), the monitoring will show **actual host metrics**!
 
 | Task | Command |
 |------|---------|
-| Start | `docker-compose up -d` |
-| Stop | `docker-compose down` |
-| Logs | `docker-compose logs -f` |
+| Start all | `docker-compose up -d` |
+| Stop all | `docker-compose down` |
+| Logs (all) | `docker-compose logs -f` |
 | Rebuild | `docker-compose up -d --build` |
 | Status | `docker-compose ps` |
 | Reset DB | `docker-compose down -v` then `up -d` |
+| Jenkins logs | `docker-compose logs -f jenkins` |
+| Restart service | `docker-compose restart <service>` |
 
 **Dashboard:** http://localhost  
-**API Docs:** http://localhost/api/docs (when backend running)  
+**Jenkins:** http://localhost:8080  
+**API Docs:** http://localhost/api/docs  
 **Login:** admin / admin123

@@ -94,7 +94,7 @@ Edit `.env` and change:
 ### 3. Deploy
 
 ```bash
-# Build and start all services
+# Build and start all services (including Jenkins)
 docker-compose up -d --build
 
 # Check status
@@ -102,67 +102,110 @@ docker-compose ps
 
 # View logs
 docker-compose logs -f
+
+# Wait for all services to be healthy
+# Jenkins takes ~60 seconds to initialize
+# MySQL takes ~30 seconds to initialize
 ```
 
-### 4. Access Dashboard
+### 4. Access Services
 
-Open `http://your-ec2-ip` in your browser.
+| Service | URL | Default Login |
+|---------|-----|---------------|
+| **Dashboard** | http://your-ip | admin / admin123 |
+| **Jenkins** | http://your-ip:8080 | admin / admin123 |
+| **API Docs** | http://your-ip/api/docs | - |
 
-Default credentials:
-- Username: `admin`
-- Password: `admin123`
+⚠️ **Change all default passwords immediately!**
 
 ---
 
-## 🚀 CI/CD with Jenkins (Optional)
+## 🚀 CI/CD with Jenkins
 
-InfraSentinel includes an automated CI/CD pipeline using Jenkins.
+InfraSentinel includes a production-ready CI/CD pipeline using Jenkins for automated deployments.
+
+### Features
+
+✅ **Automated Deployments** - Push to GitHub → Auto-deploy to EC2
+✅ **Zero Downtime** - Rolling updates without service interruption
+✅ **Health Checks** - Validates deployment before completing
+✅ **Auto Rollback** - Reverts to previous version on failure
+✅ **Database Backups** - Automatic backup before each deployment
+✅ **Docker Network Fix** - Ensures proper container connectivity
 
 ### Quick Setup
 
 ```bash
-# Start Jenkins
-docker-compose up -d jenkins
+# Jenkins is included in docker-compose.yml
+docker-compose up -d
 
-# Access Jenkins
-# Open: http://your-ec2-ip:8080
-# Login: admin / admin123 (change this!)
+# Access Jenkins at http://your-ec2-ip:8080
+# Initial password is in casc.yaml: admin/admin123
 ```
 
-### Automated Deployment Pipeline
+### Pipeline Stages
 
-The Jenkins pipeline automatically:
-1. ✅ Validates configuration files
-2. ✅ Backs up current deployment
-3. ✅ Builds Docker images
-4. ✅ Deploys with zero downtime
-5. ✅ Runs health checks
-6. ✅ Rolls back on failure
+The Jenkinsfile defines 8 automated stages:
 
-### Manual Deployment Script
+1. **Checkout** - Pull latest code from GitHub
+2. **Validate** - Check configuration files and Dockerfiles
+3. **Backup** - Backup database and docker-compose.yml
+4. **Build Images** - Build backend, frontend, worker containers
+5. **Stop Services** - Gracefully stop old containers
+6. **Deploy** - Start new containers with network connectivity
+7. **Health Check** - Verify backend health and all services running
+8. **Cleanup** - Remove old images and excess backups
 
-For quick deployments without Jenkins:
+### GitHub Webhook Setup
+
+Enable automatic deployments when you push code:
+
+**1. Configure Jenkins Job:**
+- Open Jenkins → InfraSentinel-Deploy → Configure
+- Build Triggers → ☑ "GitHub hook trigger for GITScm polling"
+- Save
+
+**2. Configure GitHub Webhook:**
+- Repository Settings → Webhooks → Add webhook
+- **Payload URL**: `http://your-ec2-ip:8080/github-webhook/`
+- **Content type**: `application/json`
+- **SSL verification**: Disable (for HTTP) or configure certificate
+- **Events**: Just the push event
+- **Active**: ☑ Checked
+- Save
+
+**3. AWS Security Group:**
+Ensure port 8080 allows inbound from GitHub IPs (or 0.0.0.0/0 for testing)
+
+**4. Test:**
+```bash
+git add .
+git commit -m "test: Trigger webhook"
+git push origin main
+# Watch Jenkins automatically start build!
+```
+
+### Manual Deployment
+
+For deployments without Jenkins:
 
 ```bash
-# Make executable
 chmod +x deploy.sh
-
-# Run deployment
 ./deploy.sh
 ```
 
-### GitHub Webhook (Auto-Deploy)
+### Monitoring Deployments
 
-Set up automatic deployments on git push:
+```bash
+# View Jenkins logs
+docker-compose logs -f jenkins
 
-1. **GitHub Settings** → **Webhooks** → **Add webhook**
-   - URL: `http://your-ec2-ip:8080/github-webhook/`
-   - Content type: `application/json`
-   - Events: Push events
+# Check last 5 builds
+curl -s http://your-ec2-ip:8080/job/InfraSentinel-Deploy/api/json\?tree=builds[number,result,timestamp]\{0,5\}
 
-2. **Push code** → Jenkins automatically builds and deploys!
-
-See [jenkins/README.md](jenkins/README.md) for detailed configuration.
+# Watch deployment in real-time
+docker-compose ps
+```
 
 ---
 
@@ -215,13 +258,29 @@ backend:
 
 ⚠️ **This system runs privileged containers.** Only deploy on trusted infrastructure.
 
-Recommendations:
-1. Change all default passwords
-2. Use strong SECRET_KEY
-3. Restrict SSH access by IP
-4. Use security groups to limit port 80 access
-5. Never expose MySQL port 3306 publicly
-6. Consider adding HTTPS with Let's Encrypt
+### Required Actions:
+1. ✅ Change all default passwords (admin, MySQL, Jenkins)
+2. ✅ Use strong SECRET_KEY in .env
+3. ✅ Restrict SSH (port 22) to your IP only
+4. ✅ Restrict Jenkins (port 8080) to your IP or GitHub webhook IPs
+5. ✅ Never expose MySQL port 3306 or backend port 8000 publicly
+6. ✅ Frontend (port 80) can be public for monitoring dashboard
+
+### AWS Security Group Example:
+
+| Type | Port | Source | Purpose |
+|------|------|--------|----------|
+| SSH | 22 | Your IP | Remote access |
+| HTTP | 80 | 0.0.0.0/0 | Dashboard |
+| Custom TCP | 8080 | Your IP | Jenkins UI |
+| Custom TCP | 8080 | 140.82.112.0/20 | GitHub webhooks |
+| Custom TCP | 8080 | 143.55.64.0/20 | GitHub webhooks |
+
+### Optional:
+- Add HTTPS with Let's Encrypt/Certbot
+- Enable GitHub webhook secret verification
+- Set up Jenkins user authentication (LDAP/OAuth)
+- Configure firewall rules with UFW
 
 ## 🧪 Verify Host Monitoring
 
@@ -243,55 +302,58 @@ ps aux
 
 ```
 InfraSentinel/
-├── docker-compose.yml
-├── .env
-├── .env.example
-├── README.md
+├── docker-compose.yml          # Multi-container orchestration
+├── .env                        # Environment variables (create from .env.example)
+├── .env.example                # Example configuration
 ├── Jenkinsfile                 # CI/CD pipeline definition
-├── deploy.sh                   # Quick deployment script
-├── AWS_DEPLOYMENT.md           # AWS deployment guide
+├── deploy.sh                   # Manual deployment script
+├── README.md                   # This file
+├── AWS_DEPLOYMENT.md           # Complete AWS EC2 deployment guide
 ├── WINDOWS_GUIDE.md            # Windows development guide
-├── backend/
+├── backend/                    # FastAPI backend service
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── app/
-│       ├── main.py
-│       ├── config.py
-│       ├── database.py
-│       ├── models.py
-│       ├── schemas.py
-│       ├── auth.py
+│       ├── main.py            # FastAPI application entry
+│       ├── config.py          # Configuration management
+│       ├── database.py        # SQLAlchemy setup
+│       ├── models.py          # Database models
+│       ├── schemas.py         # Pydantic schemas
+│       ├── auth.py            # JWT authentication
 │       ├── routes/
-│       │   ├── auth.py
-│       │   ├── metrics.py
-│       │   └── processes.py
+│       │   ├── __init__.py
+│       │   ├── auth.py        # Login endpoint
+│       │   ├── metrics.py     # Metrics endpoints
+│       │   └── processes.py   # Process management
 │       ├── services/
-│       │   ├── metrics_collector.py
-│       │   └── process_monitor.py
+│       │   ├── __init__.py
+│       │   ├── metrics_collector.py  # Collects host metrics
+│       │   └── process_monitor.py    # Monitors host processes
 │       └── websocket/
-│           └── manager.py
-├── frontend/
+│           ├── __init__.py
+│           └── manager.py     # WebSocket connection manager
+├── frontend/                   # Nginx + static frontend
 │   ├── Dockerfile
 │   ├── nginx.conf
 │   └── static/
-│       ├── index.html
-│       ├── login.html
+│       ├── index.html         # Main dashboard
+│       ├── login.html         # Login page
 │       ├── css/
-│       │   └── style.css
+│       │   └── style.css      # Dashboard styling
 │       └── js/
-│           ├── auth.js
-│           └── app.js
-├── worker/
+│           ├── auth.js        # Authentication logic
+│           └── app.js         # Dashboard logic + WebSocket
+├── worker/                     # Background alert worker
 │   ├── Dockerfile
 │   ├── requirements.txt
-│   └── worker.py
-├── jenkins/
-│   ├── casc.yaml              # Jenkins configuration as code
-│   ├── plugins.txt            # Required plugins
+│   └── worker.py              # Alert checking loop
+├── jenkins/                    # Jenkins CI/CD configuration
+│   ├── casc.yaml              # Configuration as Code
+│   ├── plugins.txt            # Required Jenkins plugins
 │   ├── setup.sh               # Setup script
 │   └── README.md              # Jenkins documentation
-└── db/
-    └── init.sql
+└── db/                         # Database initialization
+    └── init.sql               # Schema + default admin user
 ```
 
 ## 📈 Performance
@@ -302,11 +364,20 @@ InfraSentinel/
 - Historical metrics stored in MySQL
 - WebSocket for efficient real-time updates
 
-Estimated resource usage:
-- Backend: ~150MB RAM
-- Worker: ~120MB RAM
-- MySQL: ~400MB RAM
-- Nginx: ~30MB RAM
+### Resource Usage (per service):
+
+| Service | RAM Usage | Notes |
+|---------|-----------|-------|
+| Backend | ~150MB | FastAPI + metrics collection |
+| Worker | ~120MB | Alert checking |
+| MySQL | ~400MB | Persistent data storage |
+| Frontend | ~30MB | Nginx static file server |
+| Jenkins | ~500MB | CI/CD automation (optional) |
+| **Total** | ~1.2GB | All services including Jenkins |
+| **Without Jenkins** | ~700MB | Core monitoring only |
+
+**Minimum EC2 Instance:** t2.micro (1GB RAM) - core services only  
+**Recommended:** t3.small (2GB RAM) - includes Jenkins CI/CD
 
 ## 🛠 Troubleshooting
 

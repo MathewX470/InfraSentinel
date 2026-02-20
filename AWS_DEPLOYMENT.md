@@ -426,44 +426,120 @@ Expected build time: 5-10 minutes for first build, 2-3 minutes for subsequent bu
 
 For automatic deployments when you push code to GitHub:
 
-#### Step 1: Configure GitHub Webhook
+#### Step 1: Update Security Group (Required!)
 
-1. Go to: `https://github.com/MathewX470/InfraSentinel`
+**Allow GitHub's Webhook IPs to reach Jenkins:**
+
+Option A: Allow all traffic to port 8080 (testing)
+```bash
+# From AWS Console → EC2 → Security Groups
+# Add Inbound Rule:
+Type: Custom TCP
+Port: 8080
+Source: 0.0.0.0/0
+```
+
+Option B: GitHub IP ranges only (production)
+```bash
+# Add these GitHub webhook IP ranges:
+140.82.112.0/20
+143.55.64.0/20
+192.30.252.0/22
+185.199.108.0/22
+```
+
+#### Step 2: Enable GitHub Trigger in Jenkins
+
+1. Go to Jenkins: `http://YOUR_EC2_IP:8080`
+2. Click **InfraSentinel-Deploy** job
+3. Click **Configure** (left sidebar)
+4. Scroll to **Build Triggers** section
+5. Check: ☑️ **"GitHub hook trigger for GITScm polling"**
+6. Scroll down and click **Save**
+
+#### Step 3: Configure GitHub Webhook
+
+1. Go to: `https://github.com/YOUR_USERNAME/InfraSentinel`
 2. Click **Settings** → **Webhooks** → **Add webhook**
-3. Configure:
+3. Configure webhook:
    ```
    Payload URL: http://YOUR_EC2_PUBLIC_IP:8080/github-webhook/
    Content type: application/json
    Secret: (leave empty for now)
-   SSL verification: Disable SSL (unless you have HTTPS configured)
+   SSL verification: Disable SSL (unless you have HTTPS)
    Which events: Just the push event
    Active: ✓ (checked)
    ```
 4. Click **Add webhook**
-5. GitHub will send a test ping - verify it shows a green checkmark
+5. GitHub will send a test ping
+6. Verify: Green checkmark = Success, Red X = Connection failed
 
-#### Step 2: Verify Webhook on Jenkins
+#### Step 4: Test Auto-Deploy
 
-The job is already configured for GitHub webhooks! When you push code:
-- ✅ GitHub sends webhook to Jenkins
-- ✅ Jenkins automatically triggers build
-- ✅ Builds new Docker images
-- ✅ Backs up current deployment
-- ✅ Deploys new version
-- ✅ Runs health checks
-- ✅ Rolls back on failure
-
-**Test it:**
+**Method A: From EC2 (if you have SSH access)**
 ```bash
-# Make a small change and push
 cd ~/InfraSentinel
 echo "# Test webhook" >> README.md
 git add README.md
-git commit -m "Test Jenkins webhook"
+git commit -m "test: Trigger webhook"
 git push origin main
 
-# Jenkins should automatically start building!
-# View at: http://YOUR_EC2_IP:8080/job/InfraSentinel-Deploy/
+# Jenkins should automatically start Build #2!
+# Watch: http://YOUR_EC2_IP:8080/job/InfraSentinel-Deploy/
+```
+
+**Method B: From your Windows machine**
+```powershell
+cd D:\Programs\Projects\InfraSentinel
+echo "# Test webhook" >> README.md
+git add README.md
+git commit -m "test: Trigger webhook"
+git push origin main
+```
+
+**What happens automatically:**
+- ✅ GitHub detects push event
+- ✅ Sends webhook POST to Jenkins
+- ✅ Jenkins receives webhook
+- ✅ Automatically triggers build
+- ✅ Builds Docker images
+- ✅ Backs up database
+- ✅ Deploys new version with zero downtime
+- ✅ Runs health checks
+- ✅ Rolls back on failure
+
+**View webhook deliveries:**
+- GitHub → Settings → Webhooks → Click your webhook → Recent Deliveries
+- Shows each push, delivery status, and Jenkins response
+
+#### Step 5: Troubleshooting Webhook
+
+**Webhook shows "Last delivery was successful" but no build:**
+```bash
+# Solution: Enable GitHub trigger in Jenkins (see Step 2)
+```
+
+**Webhook fails with connection error:**
+```bash
+# Check 1: Security group allows port 8080from 0.0.0.0/0 or GitHub IPs
+# Check 2: Jenkins is running
+docker-compose ps jenkins
+
+# Check 3: Jenkins accessible from internet
+curl -I http://YOUR_EC2_PUBLIC_IP:8080
+
+# Check 4: Verify webhook URL has trailing slash!
+# ✓ Correct: http://IP:8080/github-webhook/
+# ✗ Wrong:   http://IP:8080/github-webhook
+```
+
+**Webhook successful but build fails:**
+```bash
+# View Jenkins console output for errors
+# Common issues:
+# - Docker out of disk space: Clean with 'docker system prune -a'
+# - Network issues: Check docker network with 'docker network ls'
+# - Permission issues: Verify jenkins user in docker group
 ```
 
 ### 8.7 Alternative: Manual Deployment Script
