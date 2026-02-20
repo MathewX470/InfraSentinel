@@ -111,8 +111,8 @@ pipeline {
                 echo '🚀 Deploying new version...'
                 script {
                     sh '''
-                        # Start services
-                        docker-compose up -d --remove-orphans
+                        # Start application services (keep DB running)
+                        docker-compose up -d backend frontend worker
                         
                         # Wait for services to be healthy
                         echo "Waiting for services to start..."
