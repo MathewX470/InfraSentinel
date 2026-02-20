@@ -1,6 +1,6 @@
 # 🛡️ InfraSentinel
 
-**Admin-Only Full EC2 Host Monitoring System with CI/CD**
+**Real-time EC2 Host Monitoring System with CI/CD**
 
 A Dockerized FastAPI-based monitoring system that runs inside a container but monitors the entire EC2 host machine.
 
