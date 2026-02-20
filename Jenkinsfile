@@ -8,6 +8,10 @@ pipeline {
         BACKUP_DIR = '/tmp/infrasentinel-backup'
     }
     
+    triggers {
+        githubPush()  // Enable GitHub webhook trigger
+    }
+    
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
