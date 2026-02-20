@@ -1,0 +1,81 @@
+jenkins:
+  systemMessage: "🛡️ InfraSentinel CI/CD Server"
+  numExecutors: 2
+  mode: NORMAL
+  scmCheckoutRetryCount: 3
+  
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD:-admin123}"
+          
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+  remotingSecurity:
+    enabled: true
+
+jobs:
+  - script: >
+      pipelineJob('InfraSentinel-Deploy') {
+        description('CI/CD Pipeline for InfraSentinel Deployment')
+        
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('https://github.com/MathewX470/InfraSentinel.git')
+                  credentials('')
+                }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+        
+        triggers {
+          pollSCM {
+            scmpoll_spec('H/5 * * * *')
+          }
+        }
+        
+        properties {
+          pipelineTriggers {
+            triggers {
+              githubPush()
+            }
+          }
+        }
+      }
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+    adminAddress: "admin@infrasentinel.local"
+    
+  globalLibraries:
+    libraries:
+      - name: "infrasentinel-shared"
+        defaultVersion: "main"
+        implicit: false
+        allowVersionOverride: true
+
+tool:
+  git:
+    installations:
+      - name: "Default"
+        home: "/usr/bin/git"
+
+  dockerTool:
+    installations:
+      - name: "docker"
+        properties:
+          - installSource:
+              installers:
+                - fromDocker:
+                    version: "latest"

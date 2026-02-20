@@ -80,9 +80,30 @@ services:
     networks:
       - infrasentinel-network
 
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: infrasentinel-jenkins
+    restart: always
+    privileged: true
+    user: root
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./jenkins/casc.yaml:/var/jenkins_home/casc.yaml:ro
+      - ./:/workspace:ro
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    networks:
+      - infrasentinel-network
+
 networks:
   infrasentinel-network:
     driver: bridge
 
 volumes:
   mysql_data:
+  jenkins_home:
