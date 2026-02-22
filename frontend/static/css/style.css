@@ -595,6 +595,120 @@ textarea:focus {
     color: var(--text-muted);
 }
 
+/* Docker & Jenkins Section */
+.docker-section {
+    margin-bottom: 1.5rem;
+}
+
+.docker-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-card {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+}
+
+.info-card h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-content {
+    font-size: 0.875rem;
+}
+
+.status-content p {
+    margin: 0.25rem 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.status-content strong {
+    color: var(--text-muted);
+}
+
+.subsection {
+    margin-top: 1.5rem;
+}
+
+.subsection h4 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+}
+
+.docker-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+}
+
+.docker-table thead {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.docker-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.docker-table td {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.docker-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.docker-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+.loading-text {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-running {
+    background-color: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+}
+
+.status-exited {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.status-paused {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
 /* Footer */
 .footer {
     padding: 1rem 1.5rem;

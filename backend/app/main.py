@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .database import get_db, init_db, SessionLocal
 from .models import Metric
-from .routes import auth, metrics, processes
+from .routes import auth, metrics, processes, docker
 from .websocket.manager import connection_manager
 from .services.metrics_collector import metrics_collector
 from .auth import get_current_admin
@@ -80,6 +80,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(metrics.router, prefix="/api")
 app.include_router(processes.router, prefix="/api")
+app.include_router(docker.router)
 
 
 @app.get("/")

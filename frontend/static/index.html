@@ -151,6 +151,76 @@
                     <p class="no-alerts">No recent alerts</p>
                 </div>
             </section>
+
+            <!-- Docker & Jenkins Section -->
+            <section class="docker-section">
+                <div class="section-header">
+                    <h3>🐳 Docker & Jenkins Monitor</h3>
+                    <button id="refreshDocker" class="btn btn-sm">Refresh</button>
+                </div>
+                
+                <!-- Docker Info Cards -->
+                <div class="docker-info-grid">
+                    <div class="info-card">
+                        <h4>Docker Status</h4>
+                        <div id="dockerStatus" class="status-content">
+                            <p class="loading-text">Loading...</p>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h4>Jenkins Build</h4>
+                        <div id="jenkinsStatus" class="status-content">
+                            <p class="loading-text">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Docker Images Table -->
+                <div class="subsection">
+                    <h4>📦 Docker Images</h4>
+                    <div class="table-container">
+                        <table class="docker-table">
+                            <thead>
+                                <tr>
+                                    <th>Image ID</th>
+                                    <th>Repository</th>
+                                    <th>Tag</th>
+                                    <th>Size (MB)</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dockerImagesBody">
+                                <tr>
+                                    <td colspan="5" class="loading-row">Loading images...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Docker Containers Table -->
+                <div class="subsection">
+                    <h4>📋 Docker Containers</h4>
+                    <div class="table-container">
+                        <table class="docker-table">
+                            <thead>
+                                <tr>
+                                    <th>Container ID</th>
+                                    <th>Name</th>
+                                    <th>Image</th>
+                                    <th>Status</th>
+                                    <th>Ports</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dockerContainersBody">
+                                <tr>
+                                    <td colspan="5" class="loading-row">Loading containers...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <!-- Footer -->

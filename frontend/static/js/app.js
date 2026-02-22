@@ -32,7 +32,8 @@ async function initApp() {
     await Promise.all([
         loadMetricsHistory(),
         loadAlerts(),
-        loadProcesses()
+        loadProcesses(),
+        loadDockerData()
     ]);
     
     // Connect WebSocket
@@ -180,6 +181,118 @@ async function loadProcesses(sortBy = state.currentSortBy) {
     } catch (error) {
         console.error('Error loading processes:', error);
     }
+}
+
+/**
+ * Load Docker and Jenkins data
+ */
+async function loadDockerData() {
+    try {
+        // Load Docker info, images, containers, and Jenkins info in parallel
+        const [dockerInfo, dockerImages, dockerContainers, jenkinsInfo] = await Promise.all([
+            apiRequest('/api/docker/info').then(r => r.json()),
+            apiRequest('/api/docker/images').then(r => r.json()),
+            apiRequest('/api/docker/containers').then(r => r.json()),
+            apiRequest('/api/docker/jenkins').then(r => r.json())
+        ]);
+        
+        updateDockerStatus(dockerInfo);
+        updateJenkinsStatus(jenkinsInfo);
+        updateDockerImages(dockerImages);
+        updateDockerContainers(dockerContainers);
+    } catch (error) {
+        console.error('Error loading Docker data:', error);
+    }
+}
+
+/**
+ * Update Docker status display
+ */
+function updateDockerStatus(data) {
+    const statusEl = document.getElementById('dockerStatus');
+    
+    if (!data.available) {
+        statusEl.innerHTML = '<p style="color: #e74c3c;">❌ Docker not available</p>';
+        return;
+    }
+    
+    statusEl.innerHTML = `
+        <p><strong>Containers:</strong> ${data.containers.running}/${data.containers.total} running</p>
+        <p><strong>Images:</strong> ${data.images.total}</p>
+        <p><strong>Disk Usage:</strong> Images ${data.disk_usage.images}GB, Containers ${data.disk_usage.containers}GB, Volumes ${data.disk_usage.volumes}GB</p>
+    `;
+}
+
+/**
+ * Update Jenkins status display
+ */
+function updateJenkinsStatus(data) {
+    const statusEl = document.getElementById('jenkinsStatus');
+    
+    if (!data.available) {
+        statusEl.innerHTML = '<p style="color: #e74c3c;">❌ Jenkins not accessible</p>';
+        return;
+    }
+    
+    const result = data.last_build.result;
+    const resultColor = result === 'SUCCESS' ? '#2ecc71' : result === 'FAILURE' ? '#e74c3c' : '#ffc107';
+    const resultIcon = result === 'SUCCESS' ? '✅' : result === 'FAILURE' ? '❌' : '⏳';
+    
+    statusEl.innerHTML = `
+        <p><strong>Job:</strong> ${data.job_name}</p>
+        <p><strong>Build #${data.last_build.number}:</strong> <span style="color: ${resultColor}">${resultIcon} ${result || 'IN_PROGRESS'}</span></p>
+        <p><strong>Duration:</strong> ${data.last_build.duration}s</p>
+        <p><strong>Health Score:</strong> ${data.health_score}%</p>
+    `;
+}
+
+/**
+ * Update Docker images table
+ */
+function updateDockerImages(data) {
+    const tbody = document.getElementById('dockerImagesBody');
+    
+    if (!data.images || data.images.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-row">No Docker images found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = data.images.map(img => `
+        <tr>
+            <td>${img.id}</td>
+            <td>${img.repository}</td>
+            <td>${img.tag}</td>
+            <td>${img.size}</td>
+            <td>${formatDateTime(img.created)}</td>
+        </tr>
+    `).join('');
+}
+
+/**
+ * Update Docker containers table
+ */
+function updateDockerContainers(data) {
+    const tbody = document.getElementById('dockerContainersBody');
+    
+    if (!data.containers || data.containers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-row">No Docker containers found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = data.containers.map(container => {
+        const statusClass = container.state === 'running' ? 'status-running' : 
+                           container.state === 'exited' ? 'status-exited' : 'status-paused';
+        
+        return `
+            <tr>
+                <td>${container.id}</td>
+                <td>${container.name}</td>
+                <td>${container.image}</td>
+                <td><span class="status-badge ${statusClass}">${container.status}</span></td>
+                <td>${container.ports || '-'}</td>
+            </tr>
+        `;
+    }).join('');
 }
 
 /**
@@ -489,6 +602,8 @@ function setupEventListeners() {
     });
     
     document.getElementById('refreshAlerts')?.addEventListener('click', loadAlerts);
+    
+    document.getElementById('refreshDocker')?.addEventListener('click', loadDockerData);
     
     // Modal close handlers
     document.querySelector('.modal-close')?.addEventListener('click', hideKillModal);
