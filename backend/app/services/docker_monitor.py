@@ -148,45 +148,74 @@ class DockerMonitor:
     def get_jenkins_info(self, jenkins_url: str = "http://infrasentinel-jenkins:8080") -> Dict:
         """Get Jenkins build information."""
         try:
-            # Try to get last build info from Jenkins API
-            response = requests.get(
-                f"{jenkins_url}/job/InfraSentinel/api/json",
+            # First check if Jenkins is accessible
+            health_response = requests.get(
+                f"{jenkins_url}/api/json",
                 timeout=5
             )
             
-            if response.status_code == 200:
-                data = response.json()
-                last_build = data.get("lastBuild", {})
-                
-                if last_build:
-                    build_number = last_build.get("number", 0)
-                    # Get detailed build info
-                    build_response = requests.get(
-                        f"{jenkins_url}/job/InfraSentinel/{build_number}/api/json",
+            if health_response.status_code != 200:
+                return {
+                    "available": False,
+                    "error": f"Jenkins returned status code {health_response.status_code}"
+                }
+            
+            # Try to get job info - try both possible job names
+            job_names = ["InfraSentinel-Deploy", "InfraSentinel"]
+            
+            for job_name in job_names:
+                try:
+                    response = requests.get(
+                        f"{jenkins_url}/job/{job_name}/api/json",
                         timeout=5
                     )
                     
-                    if build_response.status_code == 200:
-                        build_data = build_response.json()
+                    if response.status_code == 200:
+                        data = response.json()
+                        last_build = data.get("lastBuild", {})
                         
-                        return {
-                            "available": True,
-                            "job_name": data.get("name", "InfraSentinel"),
-                            "last_build": {
-                                "number": build_number,
-                                "result": build_data.get("result", "IN_PROGRESS"),
-                                "duration": round(build_data.get("duration", 0) / 1000, 2),  # Convert to seconds
-                                "timestamp": build_data.get("timestamp", 0),
-                                "url": build_data.get("url", "")
-                            },
-                            "health_score": data.get("healthReport", [{}])[0].get("score", 0) if data.get("healthReport") else 0
-                        }
+                        if last_build:
+                            build_number = last_build.get("number", 0)
+                            # Get detailed build info
+                            build_response = requests.get(
+                                f"{jenkins_url}/job/{job_name}/{build_number}/api/json",
+                                timeout=5
+                            )
+                            
+                            if build_response.status_code == 200:
+                                build_data = build_response.json()
+                                
+                                return {
+                                    "available": True,
+                                    "job_name": data.get("name", job_name),
+                                    "last_build": {
+                                        "number": build_number,
+                                        "result": build_data.get("result", "IN_PROGRESS"),
+                                        "duration": round(build_data.get("duration", 0) / 1000, 2),  # Convert to seconds
+                                        "timestamp": build_data.get("timestamp", 0),
+                                        "url": build_data.get("url", "")
+                                    },
+                                    "health_score": data.get("healthReport", [{}])[0].get("score", 0) if data.get("healthReport") else 0
+                                }
+                except:
+                    continue
             
+            # If we get here, Jenkins is accessible but no job found
             return {
-                "available": False,
-                "error": "Jenkins not accessible or job not found"
+                "available": True,
+                "error": "Jenkins accessible but no InfraSentinel job found"
             }
             
+        except requests.exceptions.Timeout:
+            return {
+                "available": False,
+                "error": "Connection timeout"
+            }
+        except requests.exceptions.ConnectionError:
+            return {
+                "available": False,
+                "error": "Cannot connect to Jenkins"
+            }
         except Exception as e:
             return {
                 "available": False,
