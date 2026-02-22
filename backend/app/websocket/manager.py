@@ -75,7 +75,7 @@ class ConnectionManager:
                     "memory": metrics.memory,
                     "disk": metrics.disk
                 },
-                "timestamp": metrics.timestamp.isoformat()
+                "timestamp": metrics.timestamp.isoformat() + 'Z'
             }
             await self.broadcast(message)
         except Exception as e:
@@ -101,7 +101,7 @@ class ConnectionManager:
                     ],
                     "total_count": process_list.total_count
                 },
-                "timestamp": process_list.timestamp.isoformat()
+                "timestamp": process_list.timestamp.isoformat() + 'Z'
             }
             await self.broadcast(message)
         except Exception as e:

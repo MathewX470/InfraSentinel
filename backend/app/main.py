@@ -88,7 +88,7 @@ async def root():
     return {
         "name": "InfraSentinel",
         "status": "running",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat() + 'Z'
     }
 
 
@@ -97,7 +97,7 @@ async def health_check():
     """Health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + 'Z',
         "websocket_connections": connection_manager.connection_count
     }
 
@@ -125,7 +125,7 @@ async def websocket_endpoint(
             {
                 "type": "connected",
                 "message": "Successfully connected to InfraSentinel",
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat() + 'Z'
             },
             websocket
         )
