@@ -83,17 +83,23 @@ class DockerMonitor:
         if not ports_dict:
             return ""
         
-        port_list = []
+        port_mappings = set()  # Use set to avoid duplicates
+        
         for container_port, host_bindings in ports_dict.items():
             if host_bindings:
                 for binding in host_bindings:
+                    host_ip = binding.get("HostIp", "")
                     host_port = binding.get("HostPort", "")
                     if host_port:
-                        port_list.append(f"{host_port}→{container_port}")
+                        # Only show host IP if it's 127.0.0.1 (localhost binding)
+                        if host_ip == "127.0.0.1":
+                            port_mappings.add(f"{host_ip}:{host_port}→{container_port}")
+                        else:
+                            port_mappings.add(f"{host_port}→{container_port}")
             else:
-                port_list.append(container_port)
+                port_mappings.add(container_port)
         
-        return ", ".join(port_list) if port_list else ""
+        return ", ".join(sorted(port_mappings))
     
     def get_docker_info(self) -> Dict:
         """Get Docker system information."""
