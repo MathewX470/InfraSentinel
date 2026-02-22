@@ -107,6 +107,20 @@ class DockerMonitor:
             info = self.client.info()
             df = self.client.df()
             
+            # Calculate disk usage - sum all sizes from df result
+            images_size = 0
+            containers_size = 0
+            volumes_size = 0
+            
+            if df.get("Images"):
+                images_size = sum(img.get("Size", 0) for img in df["Images"])
+            
+            if df.get("Containers"):
+                containers_size = sum(c.get("SizeRw", 0) for c in df["Containers"])
+            
+            if df.get("Volumes"):
+                volumes_size = sum(v.get("UsageData", {}).get("Size", 0) for v in df["Volumes"] if v.get("UsageData"))
+            
             return {
                 "available": True,
                 "containers": {
@@ -119,9 +133,9 @@ class DockerMonitor:
                     "total": info.get("Images", 0)
                 },
                 "disk_usage": {
-                    "images": round(df.get("Images", [{}])[0].get("Size", 0) / (1024 * 1024 * 1024), 2) if df.get("Images") else 0,
-                    "containers": round(df.get("Containers", [{}])[0].get("Size", 0) / (1024 * 1024 * 1024), 2) if df.get("Containers") else 0,
-                    "volumes": round(df.get("Volumes", [{}])[0].get("Size", 0) / (1024 * 1024 * 1024), 2) if df.get("Volumes") else 0
+                    "images": round(images_size / (1024 * 1024 * 1024), 2),
+                    "containers": round(containers_size / (1024 * 1024 * 1024), 2),
+                    "volumes": round(volumes_size / (1024 * 1024 * 1024), 2)
                 }
             }
         except Exception as e:
@@ -131,7 +145,7 @@ class DockerMonitor:
                 "error": str(e)
             }
     
-    def get_jenkins_info(self, jenkins_url: str = "http://localhost:8080") -> Dict:
+    def get_jenkins_info(self, jenkins_url: str = "http://infrasentinel-jenkins:8080") -> Dict:
         """Get Jenkins build information."""
         try:
             # Try to get last build info from Jenkins API
