@@ -15,7 +15,8 @@ const state = {
     ws: null,
     reconnectAttempts: 0,
     maxReconnectAttempts: 5,
-    killTarget: null
+    killTarget: null,
+    currentSortBy: 'cpu'  // Track current process sort order
 };
 
 /**
@@ -30,7 +31,8 @@ async function initApp() {
     // Load initial data
     await Promise.all([
         loadMetricsHistory(),
-        loadAlerts()
+        loadAlerts(),
+        loadProcesses()
     ]);
     
     // Connect WebSocket
@@ -165,6 +167,21 @@ async function loadAlerts() {
 }
 
 /**
+ * Load processes from API with sorting
+ */
+async function loadProcesses(sortBy = state.currentSortBy) {
+    try {
+        const response = await apiRequest(`/api/processes?sort_by=${sortBy}&limit=20`);
+        const data = await response.json();
+        
+        state.currentSortBy = sortBy;
+        updateProcessTable(data);
+    } catch (error) {
+        console.error('Error loading processes:', error);
+    }
+}
+
+/**
  * Connect to WebSocket for real-time updates
  */
 function connectWebSocket() {
@@ -220,7 +237,11 @@ function handleWebSocketMessage(message) {
             addMetricToChart(message.data, message.timestamp);
             break;
         case 'processes':
-            updateProcessTable(message.data);
+            // Only update from WebSocket if using default CPU sort
+            // This allows manual sort selection to persist
+            if (state.currentSortBy === 'cpu') {
+                updateProcessTable(message.data);
+            }
             break;
         case 'connected':
             console.log(message.message);
@@ -456,14 +477,14 @@ function setupEventListeners() {
     });
     
     // Sort by selector
-    document.getElementById('sortBy').addEventListener('change', () => {
-        // Sorting is handled server-side via WebSocket
-        // Just trigger a refresh
+    document.getElementById('sortBy').addEventListener('change', (e) => {
+        const sortBy = e.target.value;
+        loadProcesses(sortBy);
     });
     
     // Refresh buttons
     document.getElementById('refreshProcesses')?.addEventListener('click', () => {
-        // Processes are updated via WebSocket
+        loadProcesses(state.currentSortBy);
     });
     
     document.getElementById('refreshAlerts')?.addEventListener('click', loadAlerts);
