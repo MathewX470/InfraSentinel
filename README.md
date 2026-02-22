@@ -8,6 +8,8 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 
 - **Full Host Monitoring**: CPU, memory, disk usage of the EC2 host (not just the container)
 - **Process Monitoring**: View all running processes on the host with ability to terminate them
+- **Docker Monitoring**: Monitor Docker containers, images, and disk usage in real-time
+- **Jenkins Integration**: View CI/CD build status, health score, and deployment history
 - **Real-time Updates**: WebSocket-based live updates every 5 seconds
 - **Historical Metrics**: Stored in MySQL for tracking trends
 - **Alert System**: Automatic alerts when CPU or memory exceed thresholds
@@ -57,6 +59,8 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 
 ## � Deployment Guides
 
+See the detailed guides below for complete installation and setup instructions:
+
 | Platform | Guide |
 |----------|-------|
 | **Windows (Development)** | [WINDOWS_GUIDE.md](WINDOWS_GUIDE.md) |
@@ -64,59 +68,21 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 
 ---
 
-## 🚀 Quick Start
+## 📊 Dashboard Pages
 
-### Prerequisites
+The web dashboard includes the following monitoring pages:
 
-- Docker & Docker Compose installed
-- Ubuntu 22.04 EC2 instance (for production) or Windows with Docker Desktop (for development)
+| Page | Description | Key Metrics |
+|------|-------------|-------------|
+| **Overview** | System metrics & alerts | CPU, Memory, Disk usage with real-time graphs |
+| **Processes** | Running processes | PID, Name, CPU%, Memory%, Status, Kill action |
+| **Docker** | Container & image monitoring | Containers (5), Images (5), Disk usage, Jenkins build status |
 
-### 1. Clone and Configure
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd InfraSentinel
-
-# Copy environment file and edit as needed
-cp .env.example .env
-nano .env
-```
-
-### 2. Update Credentials (Important!)
-
-Edit `.env` and change:
-- `SECRET_KEY` - Use a strong random string
-- `ADMIN_PASSWORD` - Change from default
-- `MYSQL_ROOT_PASSWORD` - Change from default
-- `MYSQL_PASSWORD` - Change from default
-
-### 3. Deploy
-
-```bash
-# Build and start all services (including Jenkins)
-docker-compose up -d --build
-
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs -f
-
-# Wait for all services to be healthy
-# Jenkins takes ~60 seconds to initialize
-# MySQL takes ~30 seconds to initialize
-```
-
-### 4. Access Services
-
-| Service | URL | Default Login |
-|---------|-----|---------------|
-| **Dashboard** | http://your-ip | admin / admin123 |
-| **Jenkins** | http://your-ip:8080 | admin / admin123 |
-| **API Docs** | http://your-ip/api/docs | - |
-
-⚠️ **Change all default passwords immediately!**
+**Docker Monitoring Features:**
+- **Docker Status Card**: Shows running containers, total images, disk usage breakdown
+- **Jenkins Build Card**: Displays latest build number, status, duration, and health score
+- **Images Table**: Lists all Docker images with size, repository, tag, and age
+- **Containers Table**: Shows all containers with status, ports, and image information
 
 ---
 
@@ -126,22 +92,12 @@ InfraSentinel includes a production-ready CI/CD pipeline using Jenkins for autom
 
 ### Features
 
-✅ **Automated Deployments** - Push to GitHub → Auto-deploy to EC2
-✅ **Zero Downtime** - Rolling updates without service interruption
-✅ **Health Checks** - Validates deployment before completing
-✅ **Auto Rollback** - Reverts to previous version on failure
-✅ **Database Backups** - Automatic backup before each deployment
+✅ **Automated Deployments** - Push to GitHub → Auto-deploy to EC2  
+✅ **Zero Downtime** - Rolling updates without service interruption  
+✅ **Health Checks** - Validates deployment before completing  
+✅ **Auto Rollback** - Reverts to previous version on failure  
+✅ **Database Backups** - Automatic backup before each deployment  
 ✅ **Docker Network Fix** - Ensures proper container connectivity
-
-### Quick Setup
-
-```bash
-# Jenkins is included in docker-compose.yml
-docker-compose up -d
-
-# Access Jenkins at http://your-ec2-ip:8080
-# Initial password is in casc.yaml: admin/admin123
-```
 
 ### Pipeline Stages
 
@@ -156,56 +112,7 @@ The Jenkinsfile defines 8 automated stages:
 7. **Health Check** - Verify backend health and all services running
 8. **Cleanup** - Remove old images and excess backups
 
-### GitHub Webhook Setup
-
-Enable automatic deployments when you push code:
-
-**1. Configure Jenkins Job:**
-- Open Jenkins → InfraSentinel-Deploy → Configure
-- Build Triggers → ☑ "GitHub hook trigger for GITScm polling"
-- Save
-
-**2. Configure GitHub Webhook:**
-- Repository Settings → Webhooks → Add webhook
-- **Payload URL**: `http://your-ec2-ip:8080/github-webhook/`
-- **Content type**: `application/json`
-- **SSL verification**: Disable (for HTTP) or configure certificate
-- **Events**: Just the push event
-- **Active**: ☑ Checked
-- Save
-
-**3. AWS Security Group:**
-Ensure port 8080 allows inbound from GitHub IPs (or 0.0.0.0/0 for testing)
-
-**4. Test:**
-```bash
-git add .
-git commit -m "test: Trigger webhook"
-git push origin main
-# Watch Jenkins automatically start build!
-```
-
-### Manual Deployment
-
-For deployments without Jenkins:
-
-```bash
-chmod +x deploy.sh
-./deploy.sh
-```
-
-### Monitoring Deployments
-
-```bash
-# View Jenkins logs
-docker-compose logs -f jenkins
-
-# Check last 5 builds
-curl -s http://your-ec2-ip:8080/job/InfraSentinel-Deploy/api/json\?tree=builds[number,result,timestamp]\{0,5\}
-
-# Watch deployment in real-time
-docker-compose ps
-```
+For setup instructions, see [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) (Jenkins configuration and GitHub webhook setup).
 
 ---
 
@@ -235,6 +142,14 @@ docker-compose ps
 | GET | `/api/processes/{pid}` | Specific process info |
 | POST | `/api/processes/kill/{pid}` | Terminate a process |
 
+### Docker & Jenkins
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/docker/images` | List all Docker images |
+| GET | `/api/docker/containers` | List all Docker containers |
+| GET | `/api/docker/info` | Docker system info & disk usage |
+| GET | `/api/docker/jenkins` | Jenkins build status & health |
+
 ### WebSocket
 | Endpoint | Description |
 |----------|-------------|
@@ -252,7 +167,14 @@ backend:
     - /proc:/host/proc:ro
     - /sys:/host/sys:ro
     - /:/host/root:ro
+    - /var/run/docker.sock:/var/run/docker.sock  # Docker monitoring
 ```
+
+**Why these settings?**
+- `pid: host` - Shows all host processes, not just container processes
+- `privileged: true` - Allows reading system metrics from /proc and /sys
+- `/proc`, `/sys`, `/` mounts - Access to host filesystem for metrics
+- **Docker socket mount** - Enables monitoring of Docker containers and images
 
 ## 🔒 Security Considerations
 
@@ -276,27 +198,9 @@ backend:
 | Custom TCP | 8080 | 140.82.112.0/20 | GitHub webhooks |
 | Custom TCP | 8080 | 143.55.64.0/20 | GitHub webhooks |
 
-### Optional:
-- Add HTTPS with Let's Encrypt/Certbot
-- Enable GitHub webhook secret verification
-- Set up Jenkins user authentication (LDAP/OAuth)
-- Configure firewall rules with UFW
+For complete security setup instructions, see [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md).
 
-## 🧪 Verify Host Monitoring
-
-```bash
-# Enter backend container
-docker exec -it infrasentinel-backend bash
-
-# Check if you can see host processes
-ps aux
-
-# You should see:
-# - systemd (PID 1)
-# - sshd
-# - nginx
-# - Other EC2 host processes
-```
+---
 
 ## 📁 Project Structure
 
@@ -324,11 +228,13 @@ InfraSentinel/
 │       │   ├── __init__.py
 │       │   ├── auth.py        # Login endpoint
 │       │   ├── metrics.py     # Metrics endpoints
-│       │   └── processes.py   # Process management
+│       │   ├── processes.py   # Process management
+│       │   └── docker.py      # Docker & Jenkins monitoring
 │       ├── services/
 │       │   ├── __init__.py
 │       │   ├── metrics_collector.py  # Collects host metrics
-│       │   └── process_monitor.py    # Monitors host processes
+│       │   ├── process_monitor.py    # Monitors host processes
+│       │   └── docker_monitor.py     # Docker & Jenkins monitoring
 │       └── websocket/
 │           ├── __init__.py
 │           └── manager.py     # WebSocket connection manager
@@ -379,35 +285,10 @@ InfraSentinel/
 **Minimum EC2 Instance:** t2.micro (1GB RAM) - core services only  
 **Recommended:** t3.small (2GB RAM) - includes Jenkins CI/CD
 
-## 🛠 Troubleshooting
-
-### Container not seeing host processes
-```bash
-# Verify pid: host is set
-docker inspect infrasentinel-backend | grep -i pid
-
-# Check if /host/proc exists
-docker exec infrasentinel-backend ls /host/proc
-```
-
-### Database connection errors
-```bash
-# Check MySQL is healthy
-docker-compose ps db
-
-# View MySQL logs
-docker-compose logs db
-```
-
-### WebSocket not connecting
-- Check browser console for errors
-- Verify nginx proxy configuration
-- Ensure token is valid
+---
 
 ## 📝 License
 
 MIT License - see LICENSE file for details.
 
 ---
-
-Built with ❤️ for DevOps engineers who need full visibility into their EC2 hosts.

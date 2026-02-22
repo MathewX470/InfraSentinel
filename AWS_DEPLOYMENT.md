@@ -268,6 +268,41 @@ You should see EC2 host processes like:
 - `containerd`
 - Other system processes
 
+### 7.2.1 Verify Docker Monitoring
+
+```bash
+# Test Docker API access from backend container
+docker exec -it infrasentinel-backend bash
+
+# Inside container, check Docker access
+python3 << EOF
+import docker
+client = docker.from_env()
+print(f"Containers: {len(client.containers.list())}")
+print(f"Images: {len(client.images.list())}")
+EOF
+```
+
+Expected output: 5 containers and 5 images.
+
+**Test Docker monitoring via API:**
+```bash
+# Login and get token
+TOKEN=$(curl -s -X POST http://localhost/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"YOUR_PASSWORD"}' \
+  | jq -r '.access_token')
+
+# Get Docker containers
+curl -H "Authorization: Bearer $TOKEN" http://localhost/api/docker/containers
+
+# Get Docker images
+curl -H "Authorization: Bearer $TOKEN" http://localhost/api/docker/images
+
+# Get Jenkins status
+curl -H "Authorization: Bearer $TOKEN" http://localhost/api/docker/jenkins
+```
+
 ### 7.3 Access Dashboard
 
 Open in browser:
@@ -276,6 +311,26 @@ http://YOUR_EC2_PUBLIC_IP
 ```
 
 Login with your configured admin credentials.
+
+**Dashboard Pages:**
+
+The InfraSentinel dashboard includes three monitoring pages:
+
+1. **Overview** (`http://YOUR_EC2_IP`) - System metrics with real-time graphs
+   - CPU, Memory, Disk usage of the EC2 host
+   - Historical data charts
+   - System alerts
+
+2. **Processes** - Running processes on the EC2 host
+   - View all processes with CPU/Memory usage
+   - Kill processes directly from the dashboard
+   - Filter by CPU or Memory consumption
+
+3. **Docker** - Docker and Jenkins monitoring
+   - View all running containers (5 total)
+   - Monitor Docker images and sizes  
+   - Track Docker disk usage (images, containers, volumes)
+   - Jenkins build status with health score
 
 ### 7.4 Verify Jenkins (If Installed)
 

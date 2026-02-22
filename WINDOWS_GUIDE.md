@@ -85,6 +85,27 @@ Login with:
 - **Username:** `admin`
 - **Password:** `admin123`
 
+### Step 6: Explore Dashboard Pages
+
+The dashboard includes three main pages:
+
+| Page | URL | Description |
+|------|-----|-------------|
+| **Overview** | http://localhost | System metrics with real-time graphs |
+| **Processes** | http://localhost | Running processes with kill action |
+| **Docker** | http://localhost | Docker containers, images, and Jenkins status |
+
+**Docker Monitoring Features:**
+- View all 5 running containers (backend, frontend, worker, db, jenkins)
+- Monitor Docker images and their sizes
+- Track disk usage (images, containers, volumes)
+- Check Jenkins build status and health score
+
+**Note on Windows/WSL2:**
+- Docker monitoring shows WSL2 containers and images
+- All Docker features work identically to Linux
+- Perfect for testing before deploying to EC2
+
 ---
 
 ## 🛠️ Common Commands
@@ -167,6 +188,15 @@ Invoke-RestMethod -Uri "http://localhost/api/metrics/current" -Headers $headers
 
 # Get processes
 Invoke-RestMethod -Uri "http://localhost/api/processes" -Headers $headers
+
+# Get Docker containers
+Invoke-RestMethod -Uri "http://localhost/api/docker/containers" -Headers $headers
+
+# Get Docker images
+Invoke-RestMethod -Uri "http://localhost/api/docker/images" -Headers $headers
+
+# Get Jenkins status
+Invoke-RestMethod -Uri "http://localhost/api/docker/jenkins" -Headers $headers
 ```
 
 ### Using curl (if installed)
@@ -190,11 +220,15 @@ On Windows (WSL2), the dashboard will show:
 | Memory % | WSL2 VM memory usage |
 | Disk % | Docker's virtual disk usage |
 | Processes | WSL2 Linux processes + Docker containers |
+| **Docker Containers** | All 5 InfraSentinel containers |
+| **Docker Images** | Backend, frontend, worker, MySQL, Jenkins images |
+| **Jenkins Status** | Build information and health score |
 
 This is still useful for:
 - Testing the full application flow
 - Developing new features
 - Understanding the architecture
+- **Testing Docker monitoring before EC2 deployment**
 
 ---
 
