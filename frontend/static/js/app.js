@@ -166,6 +166,7 @@ async function loadAlerts() {
     }
 }
 
+
 /**
  * Load processes from API with sorting
  */
