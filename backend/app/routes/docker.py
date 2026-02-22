@@ -1,7 +1,7 @@
 """Docker and Jenkins monitoring routes."""
 from fastapi import APIRouter, Depends
 from typing import Dict, List
-from ..auth import get_current_user
+from ..auth import get_current_admin
 from ..services.docker_monitor import docker_monitor
 
 
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/docker", tags=["docker"])
 
 
 @router.get("/images")
-async def get_docker_images(current_user: Dict = Depends(get_current_user)) -> Dict:
+async def get_docker_images(current_user: Dict = Depends(get_current_admin)) -> Dict:
     """Get list of Docker images.
     
     Returns:
@@ -23,7 +23,7 @@ async def get_docker_images(current_user: Dict = Depends(get_current_user)) -> D
 
 
 @router.get("/containers")
-async def get_docker_containers(current_user: Dict = Depends(get_current_user)) -> Dict:
+async def get_docker_containers(current_user: Dict = Depends(get_current_admin)) -> Dict:
     """Get list of Docker containers.
     
     Returns:
@@ -37,7 +37,7 @@ async def get_docker_containers(current_user: Dict = Depends(get_current_user)) 
 
 
 @router.get("/info")
-async def get_docker_info(current_user: Dict = Depends(get_current_user)) -> Dict:
+async def get_docker_info(current_user: Dict = Depends(get_current_admin)) -> Dict:
     """Get Docker system information.
     
     Returns:
@@ -47,7 +47,7 @@ async def get_docker_info(current_user: Dict = Depends(get_current_user)) -> Dic
 
 
 @router.get("/jenkins")
-async def get_jenkins_info(current_user: Dict = Depends(get_current_user)) -> Dict:
+async def get_jenkins_info(current_user: Dict = Depends(get_current_admin)) -> Dict:
     """Get Jenkins build information.
     
     Returns:
