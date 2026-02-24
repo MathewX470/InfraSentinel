@@ -57,17 +57,6 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-## � Deployment Guides
-
-See the detailed guides below for complete installation and setup instructions:
-
-| Platform | Guide |
-|----------|-------|
-| **Windows (Development)** | [WINDOWS_GUIDE.md](WINDOWS_GUIDE.md) |
-| **AWS EC2 (Production)** | [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) |
-
----
-
 ## 📊 Dashboard Pages
 
 The web dashboard includes the following monitoring pages:
@@ -111,8 +100,6 @@ The Jenkinsfile defines 8 automated stages:
 6. **Deploy** - Start new containers with network connectivity
 7. **Health Check** - Verify backend health and all services running
 8. **Cleanup** - Remove old images and excess backups
-
-For setup instructions, see [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md) (Jenkins configuration and GitHub webhook setup).
 
 ---
 
