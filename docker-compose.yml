@@ -82,7 +82,10 @@ services:
       - infrasentinel-network
 
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
+    image: infrasentinel-jenkins:latest
     container_name: infrasentinel-jenkins
     restart: always
     privileged: true
