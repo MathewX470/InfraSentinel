@@ -65,22 +65,14 @@ pipeline {
         
         stage('Install Trivy') {
             steps {
-                echo '🔧 Installing Trivy scanner...'
+                echo '🔧 Checking Trivy scanner...'
                 script {
                     sh '''
-                        # Check if Trivy is already installed
-                        if command -v trivy &> /dev/null; then
-                            echo "✓ Trivy already installed: $(trivy --version)"
-                        else
-                            echo "Installing Trivy..."
-                            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-                            echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-                            sudo apt-get update
-                            sudo apt-get install -y trivy
-                            echo "✓ Trivy installed successfully"
-                        fi
+                        # Verify Trivy is installed
+                        trivy --version
                         
-                        # Update Trivy database
+                        # Update Trivy vulnerability database
+                        echo "Updating Trivy vulnerability database..."
                         trivy image --download-db-only
                         echo "✓ Trivy vulnerability database updated"
                     '''
