@@ -9,12 +9,11 @@ pipeline {
     }
     
     triggers {
-        githubPush()  // Enable GitHub webhook trigger
+        pollSCM('H/5 * * * *')  // Poll SCM every 5 minutes as fallback
     }
     
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        timestamps()
         timeout(time: 30, unit: 'MINUTES')
     }
     

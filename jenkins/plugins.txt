@@ -11,3 +11,5 @@ ws-cleanup:latest
 build-timeout:latest
 credentials-binding:latest
 ssh-agent:latest
+ansicolor:latest
+pipeline-utility-steps:latest
