@@ -10,6 +10,8 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 - **Process Monitoring**: View all running processes on the host with ability to terminate them
 - **Docker Monitoring**: Monitor Docker containers, images, and disk usage in real-time
 - **Jenkins Integration**: View CI/CD build status, health score, and deployment history
+- **Code Quality Analysis**: SonarQube integration for code quality, security vulnerabilities, and technical debt
+- **Container Security Scanning**: Trivy integration for CVE detection in Docker images
 - **Real-time Updates**: WebSocket-based live updates every 5 seconds
 - **Historical Metrics**: Stored in MySQL for tracking trends
 - **Alert System**: Automatic alerts when CPU or memory exceed thresholds
@@ -40,11 +42,18 @@ A Dockerized FastAPI-based monitoring system that runs inside a container but mo
 │  │  │  ┌───────────────────────────────────────────────────────┐  │   │  │
 │  │  │  │  Automated Deployment Pipeline:                       │  │   │  │
 │  │  │  │  • GitHub webhook triggers build                      │  │   │  │
+│  │  │  │  • SonarQube code quality analysis                    │  │   │  │
+│  │  │  │  • Trivy container security scanning                  │  │   │  │
 │  │  │  │  • Build Docker images                                │  │   │  │
 │  │  │  │  • Deploy with zero downtime                          │  │   │  │
 │  │  │  │  • Health checks & auto rollback                      │  │   │  │
 │  │  │  └───────────────────────────────────────────────────────┘  │   │  │
 │  │  └─────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                    │  │
+│  │  ┌────────────────┐  ┌──────────────┐       Trivy CLI Tool       │  │
+│  │  │  SonarQube     │  │ PostgreSQL   │       (Security Scanner)    │  │
+│  │  │    :9000       │  │   :5432      │                             │  │
+│  │  └────────────────┘  └──────────────┘                             │  │
 │  │                                                                    │  │
 │  └────────────────────────────────────────────────────────────────────┘  │
 │                                    │                                     │
@@ -83,6 +92,8 @@ InfraSentinel includes a production-ready CI/CD pipeline using Jenkins for autom
 
 ✅ **Automated Deployments** - Push to GitHub → Auto-deploy to EC2  
 ✅ **Zero Downtime** - Rolling updates without service interruption  
+✅ **Code Quality Analysis** - SonarQube scans for bugs, vulnerabilities, code smells  
+✅ **Security Scanning** - Trivy scans Docker images for CVEs  
 ✅ **Health Checks** - Validates deployment before completing  
 ✅ **Auto Rollback** - Reverts to previous version on failure  
 ✅ **Database Backups** - Automatic backup before each deployment  
@@ -90,20 +101,84 @@ InfraSentinel includes a production-ready CI/CD pipeline using Jenkins for autom
 
 ### Pipeline Stages
 
-The Jenkinsfile defines 8 automated stages:
+The Jenkinsfile defines 11 automated stages:
 
 1. **Checkout** - Pull latest code from GitHub
-2. **Validate** - Check configuration files and Dockerfiles
-3. **Backup** - Backup database and docker-compose.yml
-4. **Build Images** - Build backend, frontend, worker containers
-5. **Stop Services** - Gracefully stop old containers
-6. **Deploy** - Start new containers with network connectivity
-7. **Health Check** - Verify backend health and all services running
-8. **Cleanup** - Remove old images and excess backups
+2. **Check CI Skip** - Skip build if commit message contains [ci skip]
+3. **Validate** - Check configuration files and Dockerfiles
+4. **Install Trivy** - Install and update Trivy vulnerability scanner
+5. **SonarQube Analysis** - Code quality and security analysis
+6. **Backup** - Backup database and docker-compose.yml
+7. **Build Images** - Build backend, frontend, worker containers
+8. **Security Scan with Trivy** - Scan images for HIGH/CRITICAL CVEs
+9. **Stop Services** - Gracefully stop old containers
+10. **Deploy** - Start new containers with network connectivity
+11. **Health Check** - Verify backend health and all services running
+12. **Cleanup** - Remove old images and excess backups
 
 ---
 
-## 📊 API Endpoints
+## � Code Quality & Security Analysis
+
+### SonarQube Integration
+
+InfraSentinel includes **SonarQube 10.4** for continuous code quality and security analysis.
+
+**What SonarQube Analyzes:**
+- 🐛 **Bugs** - Code that is demonstrably wrong
+- 🔒 **Vulnerabilities** - Security issues (OWASP Top 10, CWE)
+- 🔥 **Security Hotspots** - Code requiring security review
+- 🧹 **Code Smells** - Maintainability issues
+- 📊 **Coverage** - Test coverage metrics
+- 📝 **Duplications** - Code duplication detection
+- 💸 **Technical Debt** - Time to fix all issues
+
+**Access SonarQube:**
+- URL: `http://YOUR_EC2_IP:9000`
+- Default credentials: `admin` / `admin` (change on first login)
+- Dashboard: `/dashboard?id=infrasentinel`
+
+**Configuration Files:**
+- `sonar-project.properties` - Project configuration
+- Integrated into Jenkins pipeline stage 5
+
+### Trivy Security Scanning
+
+**Trivy** is an open-source vulnerability scanner for containers.
+
+**What Trivy Scans:**
+- 📦 **CVEs** - Known vulnerabilities in packages
+- 🔐 **Misconfigurations** - IaC security issues
+- 🔑 **Secrets** - Exposed credentials in images
+- 📜 **Licenses** - Software license compliance
+
+**Scan Reports:**
+- Generated during Jenkins pipeline (stage 8)
+- Saves reports to `trivy-reports/` directory
+- Scans: Backend, Frontend, Worker images
+- Filter: HIGH and CRITICAL severity only
+
+**Manual Scan:**
+```bash
+# Scan specific image
+trivy image infrasentinel-backend:latest
+
+# Scan for secrets
+trivy fs --scanners secret .
+
+# Generate JSON report
+trivy image --format json -o report.json YOUR_IMAGE
+```
+
+**Pipeline Behavior:**
+- Displays vulnerability summary in console
+- Saves detailed reports for review
+- ⚠️ Currently logs warnings for CRITICAL CVEs
+- Can be configured to fail pipeline (uncomment exit 1)
+
+---
+
+## �📊 API Endpoints
 
 ### Authentication
 | Method | Endpoint | Description |
@@ -184,8 +259,9 @@ backend:
 | Custom TCP | 8080 | Your IP | Jenkins UI |
 | Custom TCP | 8080 | 140.82.112.0/20 | GitHub webhooks |
 | Custom TCP | 8080 | 143.55.64.0/20 | GitHub webhooks |
+| Custom TCP | 9000 | Your IP | SonarQube Dashboard |
 
-For complete security setup instructions, see [AWS_DEPLOYMENT.md](AWS_DEPLOYMENT.md).
+For complete security setup instructions, see [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md).
 
 ---
 
@@ -245,9 +321,31 @@ InfraSentinel/
 │   ├── plugins.txt            # Required Jenkins plugins
 │   ├── setup.sh               # Setup script
 │   └── README.md              # Jenkins documentation
-└── db/                         # Database initialization
-    └── init.sql               # Schema + default admin user
+├── db/                         # Database initialization
+│   └── init.sql               # Schema + default admin user
+├── docs/                       # Documentation
+│   ├── AWS_DEPLOYMENT.md      # Full AWS EC2 deployment guide
+│   ├── AWS_EC2_QUICKSTART.md  # Quick start for AWS with SonarQube/Trivy
+│   ├── SONARQUBE_TRIVY_GUIDE.md # Security & quality tools setup
+│   ├── JENKINS_GUIDE.md       # Jenkins configuration
+│   └── WINDOWS_GUIDE.md       # Windows development guide
+└── sonar-project.properties   # SonarQube project configuration
 ```
+
+---
+
+## 🚀 Quick Start Guides
+
+### For AWS EC2 Deployment:
+1. **Quick Start**: [docs/AWS_EC2_QUICKSTART.md](docs/AWS_EC2_QUICKSTART.md) - Fast deployment with all tools
+2. **Full Guide**: [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md) - Comprehensive step-by-step instructions
+3. **Security Tools**: [docs/SONARQUBE_TRIVY_GUIDE.md](docs/SONARQUBE_TRIVY_GUIDE.md) - SonarQube & Trivy setup
+
+### For Local Development:
+1. **Windows**: [docs/WINDOWS_GUIDE.md](docs/WINDOWS_GUIDE.md) - Windows setup with WSL2
+2. **Jenkins Setup**: [docs/JENKINS_GUIDE.md](docs/JENKINS_GUIDE.md) - CI/CD pipeline configuration
+
+---
 
 ## 📈 Performance
 
@@ -265,12 +363,21 @@ InfraSentinel/
 | Worker | ~120MB | Alert checking |
 | MySQL | ~400MB | Persistent data storage |
 | Frontend | ~30MB | Nginx static file server |
-| Jenkins | ~500MB | CI/CD automation (optional) |
-| **Total** | ~1.2GB | All services including Jenkins |
-| **Without Jenkins** | ~700MB | Core monitoring only |
+| Jenkins | ~500MB | CI/CD automation |
+| SonarQube | ~1.5GB | Code quality analysis |
+| PostgreSQL | ~200MB | SonarQube database |
+| **Total (Full Stack)** | ~2.9GB | All services + security tools |
+| **Without SonarQube** | ~1.2GB | Core monitoring + Jenkins |
+| **Core Only** | ~700MB | Without CI/CD tools |
 
-**Minimum EC2 Instance:** t2.micro (1GB RAM) - core services only  
-**Recommended:** t3.small (2GB RAM) - includes Jenkins CI/CD
+**EC2 Instance Recommendations:**
+- **Testing/Core only**: t2.micro (1GB RAM) - no CI/CD
+- **Development**: t3.small (2GB RAM) - with Jenkins, no SonarQube
+- **Production/Full Stack**: t3.medium (4GB RAM) - with Jenkins + SonarQube + Trivy
+
+**Storage Requirements:**
+- Minimum: 20 GB
+- Recommended: 30 GB (with room for Docker images and build artifacts)
 
 ---
 

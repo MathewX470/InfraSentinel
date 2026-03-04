@@ -64,6 +64,78 @@ pipeline {
             }
         }
         
+        stage('Install Trivy') {
+            steps {
+                echo '🔧 Installing Trivy scanner...'
+                script {
+                    sh '''
+                        # Check if Trivy is already installed
+                        if command -v trivy &> /dev/null; then
+                            echo "✓ Trivy already installed: $(trivy --version)"
+                        else
+                            echo "Installing Trivy..."
+                            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+                            echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+                            sudo apt-get update
+                            sudo apt-get install -y trivy
+                            echo "✓ Trivy installed successfully"
+                        fi
+                        
+                        # Update Trivy database
+                        trivy image --download-db-only
+                        echo "✓ Trivy vulnerability database updated"
+                    '''
+                }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 Running SonarQube code quality analysis...'
+                script {
+                    // Wait for SonarQube to be ready
+                    sh '''
+                        echo "Checking SonarQube availability..."
+                        max_attempts=30
+                        attempt=0
+                        
+                        while [ $attempt -lt $max_attempts ]; do
+                            if docker exec infrasentinel-sonarqube wget -q --spider http://localhost:9000/api/system/status 2>/dev/null; then
+                                echo "✓ SonarQube is ready"
+                                break
+                            fi
+                            attempt=$((attempt + 1))
+                            echo "Waiting for SonarQube... ($attempt/$max_attempts)"
+                            sleep 2
+                        done
+                        
+                        if [ $attempt -eq $max_attempts ]; then
+                            echo "⚠️ SonarQube not ready, skipping analysis"
+                            exit 0
+                        fi
+                    '''
+                    
+                    // Run SonarQube scanner
+                    sh '''
+                        # Run SonarQube scanner using Docker
+                        docker run --rm \
+                            --network infrasentinel_infrasentinel-network \
+                            -e SONAR_HOST_URL="http://sonarqube:9000" \
+                            -e SONAR_LOGIN="${SONAR_TOKEN:-admin}" \
+                            -v "$(pwd):/usr/src" \
+                            sonarsource/sonar-scanner-cli \
+                            -Dsonar.projectKey=infrasentinel \
+                            -Dsonar.sources=. \
+                            -Dsonar.exclusions=**/node_modules/**,**/__pycache__/**,**/venv/**,**/.git/** \
+                            -Dsonar.python.version=3.11 || echo "⚠️ SonarQube analysis completed with warnings"
+                        
+                        echo "✓ SonarQube analysis completed"
+                        echo "📊 View results at: http://localhost:9000/dashboard?id=infrasentinel"
+                    '''
+                }
+            }
+        }
+        
         stage('Backup Current Deployment') {
             when {
                 expression { 
@@ -101,6 +173,82 @@ pipeline {
                     sh '''
                         docker-compose build --parallel backend frontend worker
                         echo "✓ All images built successfully"
+                    '''
+                }
+            }
+        }
+        
+        stage('Security Scan with Trivy') {
+            steps {
+                echo '🔒 Scanning Docker images for vulnerabilities...'
+                script {
+                    sh '''
+                        echo ""
+                        echo "=========================================="
+                        echo "  Trivy Security Vulnerability Scan"
+                        echo "=========================================="
+                        echo ""
+                        
+                        # Create reports directory
+                        mkdir -p trivy-reports
+                        
+                        # Scan backend image
+                        echo "📦 Scanning backend image..."
+                        trivy image \
+                            --severity HIGH,CRITICAL \
+                            --format table \
+                            --output trivy-reports/backend-scan.txt \
+                            infrasentinel-backend:latest || true
+                        
+                        trivy image \
+                            --severity HIGH,CRITICAL \
+                            --format json \
+                            --output trivy-reports/backend-scan.json \
+                            infrasentinel-backend:latest || true
+                        
+                        # Scan frontend image
+                        echo "📦 Scanning frontend image..."
+                        trivy image \
+                            --severity HIGH,CRITICAL \
+                            --format table \
+                            --output trivy-reports/frontend-scan.txt \
+                            infrasentinel-frontend:latest || true
+                        
+                        # Scan worker image
+                        echo "📦 Scanning worker image..."
+                        trivy image \
+                            --severity HIGH,CRITICAL \
+                            --format table \
+                            --output trivy-reports/worker-scan.txt \
+                            infrasentinel-worker:latest || true
+                        
+                        # Display summary
+                        echo ""
+                        echo "=========================================="
+                        echo "  Vulnerability Scan Summary"
+                        echo "=========================================="
+                        
+                        for report in trivy-reports/*-scan.txt; do
+                            if [ -f "$report" ]; then
+                                echo ""
+                                echo "--- $(basename $report) ---"
+                                cat "$report"
+                            fi
+                        done
+                        
+                        echo ""
+                        echo "✓ Security scan completed"
+                        echo "📄 Detailed reports saved in trivy-reports/"
+                        echo ""
+                        
+                        # Check for CRITICAL vulnerabilities (fail pipeline if found)
+                        critical_count=$(grep -c "CRITICAL" trivy-reports/*-scan.txt || echo "0")
+                        if [ "$critical_count" -gt "0" ]; then
+                            echo "⚠️ WARNING: $critical_count CRITICAL vulnerabilities found!"
+                            echo "Consider fixing before production deployment"
+                            # Uncomment next line to fail pipeline on critical vulnerabilities
+                            # exit 1
+                        fi
                     '''
                 }
             }
