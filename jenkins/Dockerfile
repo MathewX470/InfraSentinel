@@ -21,11 +21,18 @@ RUN curl -SL "https://github.com/docker/compose/releases/latest/download/docker-
     && chmod +x /usr/local/bin/docker-compose \
     && ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
-# Install Trivy (binary installation for compatibility)
-RUN wget -qO /tmp/trivy.tar.gz https://github.com/aquasecurity/trivy/releases/latest/download/trivy_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz \
-    && tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy \
-    && chmod +x /usr/local/bin/trivy \
-    && rm /tmp/trivy.tar.gz
+# Install Trivy (binary installation compatible with amd64/arm64)
+RUN set -eux; \
+    ARCH="$(uname -m)"; \
+    if [ "$ARCH" = "x86_64" ]; then TRIVY_ASSET="Linux-64bit"; \
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then TRIVY_ASSET="Linux-ARM64"; \
+    else echo "Unsupported architecture: $ARCH"; exit 1; fi; \
+    TRIVY_URL="$(curl -fsSL https://api.github.com/repos/aquasecurity/trivy/releases/latest | grep 'browser_download_url' | grep "trivy_.*_${TRIVY_ASSET}\\.tar\\.gz\"" | head -n 1 | cut -d '"' -f 4)"; \
+    test -n "$TRIVY_URL"; \
+    curl -fsSL "$TRIVY_URL" -o /tmp/trivy.tar.gz; \
+    tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy; \
+    chmod +x /usr/local/bin/trivy; \
+    rm /tmp/trivy.tar.gz
 
 # Verify installations
 RUN docker --version && docker-compose --version && trivy --version
