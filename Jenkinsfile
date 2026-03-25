@@ -296,15 +296,17 @@ pipeline {
                             DB_PASS=${DB_PASS:-monitor_pass}
                             DB_NAME=${DB_NAME:-monitoring}
 
+                            DB_USER_ESCAPED=$(printf "%s" "$DB_USER" | sed "s/'/''/g")
+                            DB_PASS_ESCAPED=$(printf "%s" "$DB_PASS" | sed "s/'/''/g")
+                            DB_NAME_ESCAPED=$(printf "%s" "$DB_NAME" | sed 's/`/``/g')
+
                             echo "Synchronizing DB user credentials for '${DB_USER}'..."
-                            docker exec -e DB_USER="$DB_USER" -e DB_PASS="$DB_PASS" -e DB_NAME="$DB_NAME" infrasentinel-db sh -c '
-                                mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "
-                                    CREATE USER IF NOT EXISTS '\''$DB_USER'\''@'\''%'\'' IDENTIFIED BY '\''$DB_PASS'\'';
-                                    ALTER USER '\''$DB_USER'\''@'\''%'\'' IDENTIFIED BY '\''$DB_PASS'\'';
-                                    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '\''$DB_USER'\''@'\''%'\'';
-                                    FLUSH PRIVILEGES;
-                                "
-                            '
+                            cat <<SQL | docker exec -i infrasentinel-db sh -c 'mysql -u root -p"$MYSQL_ROOT_PASSWORD"'
+CREATE USER IF NOT EXISTS '${DB_USER_ESCAPED}'@'%' IDENTIFIED BY '${DB_PASS_ESCAPED}';
+ALTER USER '${DB_USER_ESCAPED}'@'%' IDENTIFIED BY '${DB_PASS_ESCAPED}';
+GRANT ALL PRIVILEGES ON \`${DB_NAME_ESCAPED}\`.* TO '${DB_USER_ESCAPED}'@'%';
+FLUSH PRIVILEGES;
+SQL
                             echo "✓ Database credentials synchronized"
                         fi
 
