@@ -142,7 +142,7 @@ pipeline {
                         # Backup database
                         if docker ps -q -f name=infrasentinel-db | grep -q .; then
                             echo "Backing up database..."
-                            docker exec infrasentinel-db mysqldump -u root -p\${MYSQL_ROOT_PASSWORD:-rootpassword} monitoring > ${BACKUP_DIR}/db_backup_\$(date +%Y%m%d_%H%M%S).sql || true
+                            docker exec infrasentinel-db sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" monitoring' > ${BACKUP_DIR}/db_backup_\$(date +%Y%m%d_%H%M%S).sql || true
                         fi
                         
                         # Save current docker-compose.yml
@@ -233,7 +233,7 @@ pipeline {
                         echo ""
                         
                         # Check for CRITICAL vulnerabilities (fail pipeline if found)
-                        critical_count=$(grep -c "CRITICAL" trivy-reports/*-scan.txt || echo "0")
+                        critical_count=$(grep -h -c "CRITICAL" trivy-reports/*-scan.txt 2>/dev/null | awk '{sum += $1} END {print sum+0}')
                         if [ "$critical_count" -gt "0" ]; then
                             echo "⚠️ WARNING: $critical_count CRITICAL vulnerabilities found!"
                             echo "Consider fixing before production deployment"
