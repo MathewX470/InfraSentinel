@@ -136,13 +136,13 @@ pipeline {
             steps {
                 echo '💾 Backing up current deployment...'
                 script {
-                    sh """
+                    sh '''
                         mkdir -p ${BACKUP_DIR}
                         
                         # Backup database
                         if docker ps -q -f name=infrasentinel-db | grep -q .; then
                             echo "Backing up database..."
-                            docker exec infrasentinel-db sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" monitoring' > ${BACKUP_DIR}/db_backup_\$(date +%Y%m%d_%H%M%S).sql || true
+                            docker exec infrasentinel-db sh -c 'mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" monitoring' > ${BACKUP_DIR}/db_backup_$(date +%Y%m%d_%H%M%S).sql || true
                         fi
                         
                         # Save current docker-compose.yml
@@ -151,7 +151,7 @@ pipeline {
                         fi
                         
                         echo "✓ Backup completed"
-                    """
+                    '''
                 }
             }
         }
