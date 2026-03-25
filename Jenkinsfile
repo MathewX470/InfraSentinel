@@ -43,6 +43,18 @@ pipeline {
             steps {
                 echo '✅ Validating configuration files...'
                 script {
+                    // Ensure Jenkins workspace uses the deployed environment file
+                    sh '''
+                        if [ -f /workspace/.env ]; then
+                            cp /workspace/.env .env
+                            echo "✓ Loaded environment from /workspace/.env"
+                        elif [ -f .env ]; then
+                            echo "✓ Using existing workspace .env"
+                        else
+                            echo "⚠️ No .env found. docker-compose defaults will be used"
+                        fi
+                    '''
+
                     // Check if docker-compose.yml is valid
                     sh '''
                         docker-compose config > /dev/null
@@ -274,6 +286,28 @@ pipeline {
                 echo '🚀 Deploying new version...'
                 script {
                     sh '''
+                        # Align MySQL app credentials with current .env before starting backend
+                        if docker ps -q -f name=infrasentinel-db | grep -q .; then
+                            DB_USER=$(grep '^MYSQL_USER=' .env 2>/dev/null | cut -d= -f2-)
+                            DB_PASS=$(grep '^MYSQL_PASSWORD=' .env 2>/dev/null | cut -d= -f2-)
+                            DB_NAME=$(grep '^MYSQL_DATABASE=' .env 2>/dev/null | cut -d= -f2-)
+
+                            DB_USER=${DB_USER:-monitor_user}
+                            DB_PASS=${DB_PASS:-monitor_pass}
+                            DB_NAME=${DB_NAME:-monitoring}
+
+                            echo "Synchronizing DB user credentials for '${DB_USER}'..."
+                            docker exec -e DB_USER="$DB_USER" -e DB_PASS="$DB_PASS" -e DB_NAME="$DB_NAME" infrasentinel-db sh -c '
+                                mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "
+                                    CREATE USER IF NOT EXISTS '\''$DB_USER'\''@'\''%'\'' IDENTIFIED BY '\''$DB_PASS'\'';
+                                    ALTER USER '\''$DB_USER'\''@'\''%'\'' IDENTIFIED BY '\''$DB_PASS'\'';
+                                    GRANT ALL PRIVILEGES ON $DB_NAME.* TO '\''$DB_USER'\''@'\''%'\'';
+                                    FLUSH PRIVILEGES;
+                                "
+                            '
+                            echo "✓ Database credentials synchronized"
+                        fi
+
                         # Ensure the project network exists
                         docker network create infrasentinel_infrasentinel-network 2>/dev/null || true
                         
